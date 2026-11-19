@@ -19,14 +19,14 @@ from datetime import datetime
 
 # ------------------------------------------------------------------ settings
 CITIES = {"Leiden", "Oegstgeest", "Leiderdorp", "Voorschoten"}
-MAX_RENT = 800  # total monthly rent in euro
+MAX_RENT = 700  # total monthly rent in euro
 
 # Allocation types Roommatch uses (field model.modelCategorie.code):
 #   "reactiedatum"             -> first come, first served ("direct te huur")
 #   "hospiteren"               -> current residents pick (waiting time irrelevant)
 #   "hospitereninschrijfduur"  -> residents pick, waiting time as tiebreaker
 #   "inschrijfduur"            -> ranked by waiting time (skipped: you rank 100+)
-WANTED_TYPES = {"reactiedatum", "hospiteren", "hospitereninschrijfduur", "inschrijfduur"}
+WANTED_TYPES = {"reactiedatum", "hospiteren", "hospitereninschrijfduur"}
 
 CHECK_EVERY_MINUTES = 10
 

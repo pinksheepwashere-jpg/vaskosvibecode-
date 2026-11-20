@@ -1,32 +1,32 @@
 name: Roommatch watcher
- 
+
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes (GitHub may delay runs by a few minutes)
-  workflow_dispatch:          # lets you start a run by hand from the Actions tab
- 
+    - cron: "*/5 7-16 * * 1-5"   # every 5 min, Mon-Fri 08:00-18:00 Dutch time (when DUWO posts)
+    - cron: "*/30 * * * *"       # every 30 min the rest of the time
+  workflow_dispatch:
+
 permissions:
-  contents: write             # needed to save the list of rooms already alerted
- 
+  contents: write
+
 concurrency:
   group: roommatch
   cancel-in-progress: false
- 
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
- 
+      - uses: actions/checkout@v5
+
       - name: Check Roommatch
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: python3 roommatch_watcher.py --once
- 
+
       - name: Save alerted rooms
         run: |
           git config user.name "roommatch-bot"
           git config user.email "roommatch-bot@users.noreply.github.com"
           git add roommatch_seen.json
           git diff --cached --quiet || (git commit -m "Update seen rooms" && git push)
- 

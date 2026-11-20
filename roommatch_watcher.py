@@ -40,6 +40,7 @@ API = ("https://roommatching-aanbodapi.zig365.nl/api/v1/actueel-aanbod"
        "?limit=100&locale=en_GB&page={page}")
 DETAIL_URL = "https://www.roommatch.nl/en/offerings/to-rent/details/{key}"
 SEEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "roommatch_seen.json")
+HEARTBEAT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "roommatch_heartbeat.txt")
 
 TYPE_LABELS = {
     "reactiedatum": "FIRST COME FIRST SERVED",
@@ -93,12 +94,12 @@ def describe(x):
     return "\n".join(lines)
 
 
-def notify(title, body):
+def notify(title, body, priority="high", tags="house"):
     print(f"\n*** {title} ***\n{body}\n")
     if NTFY_TOPIC:
         try:
             req = urllib.request.Request(f"https://ntfy.sh/{NTFY_TOPIC}", data=body.encode("utf-8"),
-                                         headers={"Title": title, "Priority": "high", "Tags": "house"})
+                                         headers={"Title": title, "Priority": priority, "Tags": tags})
             urllib.request.urlopen(req, timeout=15)
         except Exception as e:
             print(f"(phone notification failed: {e})")
@@ -126,26 +127,56 @@ def save_seen(seen):
         json.dump(sorted(seen), f)
 
 
-def check():
+def weekly_heartbeat(total):
+    """Once per calendar week: send a quiet 'still running' message and write a
+    small file. The file change also keeps the GitHub repository active, so
+    GitHub does not pause the schedule after 60 days without activity."""
+    week = datetime.now().strftime("%G-W%V")
+    try:
+        with open(HEARTBEAT_FILE) as f:
+            if f.read().strip() == week:
+                return
+    except FileNotFoundError:
+        pass
+    with open(HEARTBEAT_FILE, "w") as f:
+        f.write(week + "\n")
+    notify("Roommatch watcher is running",
+           f"Weekly check-in: still watching. {total} rooms on Roommatch right now.",
+           priority="low", tags="white_check_mark")
+
+
+def check(strict=False):
+    """strict=True (GitHub mode): exit with an error when something is wrong,
+    so the run turns red and GitHub emails you."""
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
         listings = fetch_all()
     except Exception as e:
         print(f"[{stamp}] Could not reach Roommatch: {e}")
+        if strict:
+            sys.exit(1)
+        return
+    if not listings:
+        print(f"[{stamp}] Roommatch returned 0 listings - the site may have changed.")
+        if strict:
+            sys.exit(1)
         return
     seen = load_seen()
     hits = [x for x in listings if matches(x)]
     new = [x for x in hits if str(x.get("id")) not in seen]
     print(f"[{stamp}] {len(listings)} listings total, {len(hits)} match your filters, {len(new)} new")
     for x in new:
-        notify("New Leiden room on Roommatch", describe(x))
+        fcfs = type_of(x) == "reactiedatum"
+        notify("FIRST COME FIRST SERVED - reply now!" if fcfs else "New Leiden room on Roommatch",
+               describe(x), priority="urgent" if fcfs else "high")
         seen.add(str(x.get("id")))
     save_seen(seen)
+    weekly_heartbeat(len(listings))
 
 
 if __name__ == "__main__":
     if "--once" in sys.argv:
-        check()
+        check(strict=True)
     else:
         print(f"Watching Roommatch every {CHECK_EVERY_MINUTES} min. Press Ctrl+C to stop.")
         while True:

@@ -4,10 +4,10 @@ on:
   schedule:
     - cron: "*/5 7-16 * * 1-5"   # every 5 min, Mon-Fri 08:00-18:00 Dutch time (when DUWO posts)
     - cron: "*/30 * * * *"       # every 30 min the rest of the time
-  workflow_dispatch:
+  workflow_dispatch:          # lets you start a run by hand from the Actions tab
 
 permissions:
-  contents: write
+  contents: write             # needed to save the list of rooms already alerted
 
 concurrency:
   group: roommatch
@@ -28,5 +28,5 @@ jobs:
         run: |
           git config user.name "roommatch-bot"
           git config user.email "roommatch-bot@users.noreply.github.com"
-          git add roommatch_seen.json
+          git add roommatch_seen.json roommatch_heartbeat.txt
           git diff --cached --quiet || (git commit -m "Update seen rooms" && git push)
